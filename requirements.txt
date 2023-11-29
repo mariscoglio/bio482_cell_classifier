@@ -7,3 +7,4 @@ pandas
 jupyterlab 
 statsmodels 
 scikit-learn
+ipykernel

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import warnings
+import random
 
 warnings.filterwarnings(
     "ignore",
@@ -23,6 +24,7 @@ class SkTorchEstimator(nn.Module, ABC):
         batch_size: int,
         lr: float,
         save_train_loss: bool = False,
+        random_state : int = 0,
     ) -> None:
         """Pytorch and Sklearn compatible class implementing Utime
 
@@ -43,8 +45,8 @@ class SkTorchEstimator(nn.Module, ABC):
         self.loss_function = loss_function
         self.batch_size = batch_size
         self.save_train_loss = save_train_loss
-
-        # TODO: add random state and reproducibility code if using dataloaders
+        
+        self.random_state = random_state
 
     @abstractmethod
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -62,16 +64,30 @@ class SkTorchEstimator(nn.Module, ABC):
             X (torch.Tensor): The predictors
             y (torch.Tensor): The response
         """
+        # # Reproducibility
+        # random.seed(self.random_state)
+        # np.random.seed(self.random_state)
+        # torch.use_deterministic_algorithms(True)
+        def seed_worker(worker_id):
+            worker_seed = torch.initial_seed() % 2**32
+            np.random.seed(worker_seed)
+            random.seed(worker_seed)
+        g = torch.Generator()
+        g.manual_seed(self.random_state)
+        
         self._reset_weights()
+        
         train_loader = DataLoader(
             dataset=TensorDataset(
                 torch.tensor(X.to_numpy(dtype=np.float32), dtype=torch.float32),
-                # torch.tensor(y.to_numpy(dtype=np.float32).reshape(-1, 1), dtype=torch.float32),
                 torch.tensor(y.to_numpy(dtype=np.float32), dtype=torch.int64),
             ),
             batch_size=self.batch_size,
             shuffle=True,
+            worker_init_fn=seed_worker,
+            generator=g,
         )
+        
 
         if self.save_train_loss:
             self.training_loss = np.zeros((self.num_epochs,))
@@ -97,7 +113,7 @@ class SkTorchEstimator(nn.Module, ABC):
                 # Perform optimization
                 self.optimizer.step()
                 if self.save_train_loss:
-                    current_train_loss += loss.item()  # / inputs.shape[0]
+                    current_train_loss += loss.item()
 
             # self.optimizer.zero_grad()
             # y_preds = self(X)
@@ -108,7 +124,6 @@ class SkTorchEstimator(nn.Module, ABC):
             if self.save_train_loss:
                 current_train_loss /= len(train_loader)
                 self.training_loss[epoch] = current_train_loss
-                # self.training_loss[epoch] = loss.item()
 
             if X_val is not None and y_val is not None:
                 self.validation_loss[epoch] = self.score(X_val, y_val)
@@ -157,7 +172,7 @@ class SkTorchEstimator(nn.Module, ABC):
             # # test_loss /= len(test_loader)
             preds = self(torch.tensor(X.to_numpy(dtype=np.float32), dtype=torch.float32))
             test_loss = self.loss_function(
-                torch.tensor(y.to_numpy(dtype=np.float32), dtype=torch.float32), preds
+                preds, torch.tensor(y.to_numpy(dtype=np.float32), dtype=torch.int64)
             ).item()
         return test_loss
 
@@ -222,7 +237,7 @@ class FeedForwardExample(SkTorchEstimator):
             nn.Linear(32, 64),
             nn.ReLU(),
             nn.Linear(64, num_classes),
-            nn.Softmax(num_classes),
+            nn.Softmax(),
         )
         
         self.optimizer = self.optimizer_class(params=self.parameters(), lr=self.lr)

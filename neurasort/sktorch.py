@@ -64,10 +64,11 @@ class SkTorchEstimator(nn.Module, ABC):
             X (torch.Tensor): The predictors
             y (torch.Tensor): The response
         """
-        # # Reproducibility
-        # random.seed(self.random_state)
-        # np.random.seed(self.random_state)
-        # torch.use_deterministic_algorithms(True)
+        # Reproducibility
+        random.seed(self.random_state)
+        np.random.seed(self.random_state)
+        torch.manual_seed(self.random_state)
+        torch.use_deterministic_algorithms(True)
         def seed_worker(worker_id):
             worker_seed = torch.initial_seed() % 2**32
             np.random.seed(worker_seed)
@@ -212,6 +213,7 @@ class FeedForwardExample(SkTorchEstimator):
         lr: float,
         save_train_loss: bool = False,
         num_classes: int = 4,
+        random_state: int = 0
     ) -> None:
         """Pytorch and Sklearn compatible class implementing a simple feedforward 2 layered neural net
 
@@ -230,12 +232,20 @@ class FeedForwardExample(SkTorchEstimator):
             batch_size=batch_size,
             lr=lr,
             save_train_loss=save_train_loss,
+            random_state=random_state
         )
+        
+        random.seed(self.random_state)
+        np.random.seed(self.random_state)
+        torch.manual_seed(self.random_state)
+        torch.use_deterministic_algorithms(True)
+        
         self.layers = nn.Sequential(
-            nn.LazyLinear(32),
+            nn.LazyLinear(64),
             nn.ReLU(),
-            nn.Linear(32, 64),
-            nn.ReLU(),
+            # nn.Linear(32, 64),
+            # nn.ReLU(),
+            nn.Dropout(p=0.2),
             nn.Linear(64, num_classes),
             nn.Softmax(),
         )

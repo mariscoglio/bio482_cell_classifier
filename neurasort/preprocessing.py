@@ -7,7 +7,7 @@ from sklearn.feature_selection import VarianceThreshold
 
 
 def free_whisking_preprocessing_pipe(
-    columns_ohe: list[str] = ["Cell_tdTomatoExpressing", "Cell_Layer"],
+    columns_ohe: list[str] = ["Cell_Layer"],
     columns_min_max: list[str] = ["Cell_APThreshold_Slope", "Cell_Depth", "firing_rate", "ap_duration", "std_vm", "fft_low", "fft_high"],
     columns_standadize:list[str] = ["ap_threshold", "mean_vm"],
 )->Pipeline:

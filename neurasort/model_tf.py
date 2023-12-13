@@ -1,23 +1,37 @@
-from keras.layers import Dense, Activation
+from keras.layers import Dense, Dropout
 from keras.models import Sequential
 from keras.metrics import F1Score
+from keras.optimizers import AdamW, Adamax
+from keras.optimizers.legacy import Adam, Adagrad
+from keras.regularizers import l2
 
 def create_model(
-    input_dim=13,
+    input_dim=12,
     num_classes=4,
-    optimizer='adagrad',
+    lr=0.001,
+    optimizer='adam',
     loss='categorical_crossentropy',
     hidden_layers_dims = [
-        32, 64, 64
+        32, 64, 128
     ],
     metrics=[F1Score("weighted")]
 ):
+    
+    if optimizer == 'adam':
+        optimizer = Adam(learning_rate=lr)
+    elif optimizer == 'adagrad':
+        optimizer = Adagrad(learning_rate=lr)
+    elif optimizer == 'adamw':
+         optimizer = AdamW(learning_rate=lr)
+    elif optimizer == 'adamax':
+         optimizer = Adamax(learning_rate=lr)
+
+
     model = Sequential()
-    model.add(Dense(hidden_layers_dims[0], input_dim=input_dim))
-    model.add(Activation('relu'))
+    model.add(Dense(hidden_layers_dims[0], activation = 'relu', input_dim=input_dim))
     for i in hidden_layers_dims[1:]:
-        model.add(Dense(i))
-        model.add(Activation('relu'))
+        model.add(Dense(i, activation = 'relu', kernel_regularizer=l2(0.0001)))
+        #model.add(Dropout(0.1))
     model.add(Dense(num_classes, activation="softmax"))
     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
     return model
